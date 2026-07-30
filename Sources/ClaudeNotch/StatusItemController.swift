@@ -35,11 +35,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         monitor.start()
         updates.start()
 
-        // --intro replays the walkthrough on demand (demos, testing).
+        // --intro replays the tutorial on demand (demos, testing). The flag is
+        // only marked done once the user actually hovers the notch, so an
+        // unfinished tutorial returns on the next launch.
         if !Settings.shared.didShowIntro || CommandLine.arguments.contains("--intro") {
-            Settings.shared.didShowIntro = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-                self?.hover.showIntro()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
+                self?.hover.showTutorial()
             }
         }
     }

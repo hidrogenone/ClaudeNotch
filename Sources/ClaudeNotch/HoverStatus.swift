@@ -8,8 +8,8 @@ final class HoverStatusModel: ObservableObject {
     @Published var visible = false
     @Published var topInset: CGFloat = 32
     @Published var lastUpdated: Date?
-    /// One-time onboarding line shown during the first-launch intro.
-    @Published var hintText: String?
+    /// Fires the celebration burst the first time the panel opens.
+    @Published var confetti = false
     /// Measured round-trip to the Claude API; nil while unmeasured or failed.
     @Published var apiPingMs: Int?
     @Published var pingFailed = false
@@ -35,9 +35,18 @@ final class HoverStatusController {
     private var panel: NotchPanel?
     private var tickTimer: Timer?
     private var dwellStart: Date?
-    /// While set, the mouse-tracking tick may not hide the panel — the
-    /// first-run intro plays out even though the cursor is nowhere near it.
-    private var introDeadline: Date?
+
+    // First-run tutorial: a floating badge under the notch that stays put
+    // until the user actually hovers the notch, then celebrates with confetti.
+    private var hintPanel: NotchPanel?
+    private let hintModel = HintBadgeModel()
+    private var tutorialActive = false
+    /// Completion only counts after the cursor has been seen OUTSIDE the hot
+    /// zone once — otherwise a cursor already parked under the notch (or an
+    /// accidental brush at launch) finishes the tutorial instantly.
+    private var tutorialArmed = false
+
+    private var clickMonitor: Any?
 
     init() {
         model.onOpen = {
@@ -50,6 +59,16 @@ final class HoverStatusController {
         }
         RunLoop.main.add(timer, forMode: .common)
         tickTimer = timer
+
+        // Clicking the notch opens the panel instantly — the gesture people
+        // try first, before they discover hovering.
+        clickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] _ in
+            guard let self, !self.suppressed, !self.model.visible else { return }
+            let zone = Self.hotZone(on: NotchAlertController.targetScreen())
+            guard zone.contains(NSEvent.mouseLocation) else { return }
+            if self.tutorialActive { self.completeTutorial() }
+            self.show()
+        }
     }
 
     func update(summary: StatusSummary?) {
@@ -58,17 +77,58 @@ final class HoverStatusController {
         model.lastUpdated = Date()
     }
 
-    /// First-launch walkthrough: drop the panel once with a hint line so
-    /// people discover that the notch is hoverable at all.
-    func showIntro() {
-        introDeadline = Date().addingTimeInterval(6.5)
-        model.hintText = "Hover the notch any time to check on Claude"
-        show()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6.5) { [weak self] in
-            guard let self else { return }
-            self.forceHide()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.model.hintText = nil }
+    /// First-launch tutorial: float a hint badge right under the notch and
+    /// leave it there until the user hovers the notch for real. Completing
+    /// the gesture is rewarded with a confetti burst inside the panel.
+    func showTutorial() {
+        tutorialActive = true
+        tutorialArmed = false
+        ensureHintPanel()
+        hintPanel?.orderFrontRegardless()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+            self?.hintModel.visible = true
         }
+    }
+
+    private func completeTutorial() {
+        tutorialActive = false
+        Settings.shared.didShowIntro = true
+        if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            model.confetti = true
+        }
+        hintModel.visible = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.hintPanel?.orderOut(nil)
+            self?.hintPanel = nil
+        }
+    }
+
+    private func ensureHintPanel() {
+        if hintPanel != nil { return }
+        let panel = NotchPanel(
+            contentRect: .zero,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.level = .statusBar
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.hasShadow = false
+        panel.isMovable = false
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.ignoresMouseEvents = true
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
+        let screen = NotchAlertController.targetScreen()
+        hintModel.topInset = max(screen.safeAreaInsets.top, 8)
+        panel.contentView = NSHostingView(rootView: HintBadgeView(model: hintModel))
+        let frame = screen.frame
+        panel.setFrame(
+            NSRect(x: frame.midX - 210, y: frame.maxY - 150, width: 420, height: 150),
+            display: true
+        )
+        hintPanel = panel
     }
 
     /// One cheap unauthenticated request to the API host, timed. A 401 still
@@ -105,13 +165,17 @@ final class HoverStatusController {
 
     private func tick() {
         guard !suppressed else { return }
-        if let deadline = introDeadline {
-            if Date() < deadline { return }
-            introDeadline = nil
-        }
         let mouse = NSEvent.mouseLocation
         let screen = NotchAlertController.targetScreen()
         let zone = Self.hotZone(on: screen)
+
+        if tutorialActive {
+            if !zone.contains(mouse) {
+                tutorialArmed = true
+            } else if tutorialArmed {
+                completeTutorial()
+            }
+        }
 
         if model.visible {
             let keepAlive = zone.insetBy(dx: -30, dy: 0)
@@ -201,6 +265,63 @@ final class HoverStatusController {
     }
 }
 
+// MARK: - Tutorial badge
+
+final class HintBadgeModel: ObservableObject {
+    @Published var visible = false
+    @Published var topInset: CGFloat = 32
+}
+
+/// Rounded pill floating just under the notch, gently bobbing, pointing up.
+/// It never leaves until the user actually hovers the notch.
+struct HintBadgeView: View {
+    @ObservedObject var model: HintBadgeModel
+    @State private var floating = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer().frame(height: model.topInset + 16)
+            HStack(spacing: 9) {
+                Text("👆")
+                    .font(.system(size: 15))
+                    .offset(y: floating ? -2 : 1)
+                Text("Hover the notch any time to check on Claude")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 15)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.black, Color(white: 0.09)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 15)
+                            .stroke(Color.cyan.opacity(0.75), lineWidth: 1.2)
+                    )
+                    .shadow(color: .cyan.opacity(0.4), radius: 14, y: 4)
+            )
+            .offset(y: floating ? 7 : 0)
+            .scaleEffect(model.visible ? 1 : 0.5, anchor: .top)
+            .opacity(model.visible ? 1 : 0)
+            .animation(.spring(response: 0.55, dampingFraction: 0.6), value: model.visible)
+            Spacer(minLength: 0)
+        }
+        .frame(width: 420, height: 150, alignment: .top)
+        .onAppear {
+            guard !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.15).repeatForever(autoreverses: true)) {
+                floating = true
+            }
+        }
+    }
+}
+
 // MARK: - SwiftUI content
 
 struct HoverStatusView: View {
@@ -229,20 +350,6 @@ struct HoverStatusView: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if let hint = model.hintText {
-                HStack(spacing: 8) {
-                    Image(systemName: "hand.point.up.left.fill")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.cyan)
-                    Text(hint)
-                        .font(.system(size: 11, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.cyan)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 10)
-                .background(RoundedRectangle(cornerRadius: 8).fill(Color.cyan.opacity(0.12)))
-            }
-
             HStack(spacing: 10) {
                 Image(systemName: hasIssues ? "exclamationmark.triangle.fill" : "checkmark.seal.fill")
                     .font(.system(size: 16, weight: .bold))
@@ -329,6 +436,16 @@ struct HoverStatusView: View {
         .contentShape(Rectangle())
         .onTapGesture { model.onOpen?() }
         .pressable()
+        .overlay(alignment: .top) {
+            if model.confetti && model.visible {
+                ConfettiBurst()
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+                            model.confetti = false
+                        }
+                    }
+            }
+        }
     }
 
     private var pingText: String {
@@ -351,6 +468,54 @@ struct HoverStatusView: View {
         return "Updated \(seconds)s ago · Click to open status.claude.com"
     }
 
+    /// Confetti burst from the top of the card — a small reward the first
+    /// time someone completes the hover-the-notch tutorial.
+    struct ConfettiBurst: View {
+        struct Piece {
+            let x: CGFloat
+            let fall: CGFloat
+            let size: CGFloat
+            let spin: Double
+            let delay: Double
+            let duration: Double
+            let color: Color
+
+            static let palette: [Color] = [.red, .orange, .yellow, .green, .cyan, .pink, .purple]
+
+            static func random() -> Piece {
+                Piece(
+                    x: .random(in: -180...180),
+                    fall: .random(in: 150...330),
+                    size: .random(in: 5...10),
+                    spin: .random(in: -720...720),
+                    delay: .random(in: 0...0.25),
+                    duration: .random(in: 1.0...1.8),
+                    color: palette.randomElement()!
+                )
+            }
+        }
+
+        private let pieces = (0..<28).map { _ in Piece.random() }
+        @State private var fly = false
+
+        var body: some View {
+            ZStack {
+                ForEach(pieces.indices, id: \.self) { i in
+                    let p = pieces[i]
+                    RoundedRectangle(cornerRadius: 1.5)
+                        .fill(p.color)
+                        .frame(width: p.size, height: p.size * 0.62)
+                        .rotationEffect(.degrees(fly ? p.spin : 0))
+                        .offset(x: fly ? p.x : 0, y: fly ? p.fall : -6)
+                        .opacity(fly ? 0 : 1)
+                        .animation(.easeOut(duration: p.duration).delay(p.delay), value: fly)
+                }
+            }
+            .allowsHitTesting(false)
+            .onAppear { fly = true }
+        }
+    }
+
     /// Component dot; troubled ones emit a slow ripple so problems catch the eye.
     struct StatusDot: View {
         let color: Color
@@ -370,7 +535,8 @@ struct HoverStatusView: View {
                     }
                 }
                 .onAppear {
-                    guard troubled else { return }
+                    guard troubled,
+                          !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else { return }
                     withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
                         ripple = true
                     }
