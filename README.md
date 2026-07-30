@@ -8,6 +8,8 @@
 
 **Your MacBook's notch drops down and tells you when Claude is having a bad day.**
 
+🌐 **[claudenotch website →](https://hidrogenone.github.io/ClaudeNotch/)**
+
 ClaudeNotch is a tiny macOS menu bar app that watches [status.claude.com](https://status.claude.com). The moment an incident is published, the notch smoothly slides down into a Dynamic-Island-style alert showing what's broken — and your screen edges pulse red so you can't miss it. When the incident is resolved, everything retracts and goes quiet.
 
 No more staring at a spinning Claude wondering if it's you or them. **It's them — and now you'll know instantly.**
