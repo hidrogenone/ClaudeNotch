@@ -33,6 +33,9 @@ final class HoverStatusController {
     private var panel: NotchPanel?
     private var tickTimer: Timer?
     private var dwellStart: Date?
+    /// While set, the mouse-tracking tick may not hide the panel — the
+    /// first-run intro plays out even though the cursor is nowhere near it.
+    private var introDeadline: Date?
 
     init() {
         model.onOpen = {
@@ -56,6 +59,7 @@ final class HoverStatusController {
     /// First-launch walkthrough: drop the panel once with a hint line so
     /// people discover that the notch is hoverable at all.
     func showIntro() {
+        introDeadline = Date().addingTimeInterval(6.5)
         model.hintText = "Hover the notch any time to check on Claude"
         show()
         DispatchQueue.main.asyncAfter(deadline: .now() + 6.5) { [weak self] in
@@ -99,6 +103,10 @@ final class HoverStatusController {
 
     private func tick() {
         guard !suppressed else { return }
+        if let deadline = introDeadline {
+            if Date() < deadline { return }
+            introDeadline = nil
+        }
         let mouse = NSEvent.mouseLocation
         let screen = NotchAlertController.targetScreen()
         let zone = Self.hotZone(on: screen)
