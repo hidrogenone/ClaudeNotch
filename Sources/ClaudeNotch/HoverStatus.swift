@@ -22,7 +22,9 @@ final class HoverStatusModel: ObservableObject {
 /// so you can check on Claude any time — not just during incidents.
 final class HoverStatusController {
     static let panelWidth: CGFloat = 430
-    static let panelHeight: CGFloat = 330
+    // Tall enough that the card's rounded bottom never gets clipped, even
+    // with the intro banner and an incident line on screen at once.
+    static let panelHeight: CGFloat = 460
 
     /// True while the incident alert panel is down (hover would just duplicate it).
     var suppressed = false {
@@ -303,19 +305,25 @@ struct HoverStatusView: View {
         .padding(.bottom, 16)
         .frame(width: HoverStatusController.panelWidth)
         .background(
-            BottomRoundedRect(radius: 22)
-                .fill(Color.black)
+            BottomRoundedRect(radius: 24)
+                .fill(
+                    LinearGradient(
+                        colors: [Color.black, Color(white: 0.07)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
                 .overlay(
-                    BottomRoundedRect(radius: 22)
+                    BottomRoundedRect(radius: 24)
                         .stroke(
-                            hasIssues ? Color.red.opacity(0.7) : Color.white.opacity(0.18),
-                            lineWidth: 1.5
+                            hasIssues ? Color.red.opacity(0.7) : Color.white.opacity(0.16),
+                            lineWidth: 1.0
                         )
                 )
                 .shadow(
-                    color: hasIssues ? Color.red.opacity(0.4) : Color.black.opacity(0.5),
-                    radius: 18,
-                    y: 6
+                    color: hasIssues ? Color.red.opacity(0.4) : Color.black.opacity(0.55),
+                    radius: 20,
+                    y: 8
                 )
         )
         .contentShape(Rectangle())
