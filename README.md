@@ -12,6 +12,10 @@ ClaudeNotch is a tiny macOS menu bar app that watches [status.claude.com](https:
 
 No more staring at a spinning Claude wondering if it's you or them. **It's them — and now you'll know instantly.**
 
+![ClaudeNotch demo — the notch drops down with the incident](docs/demo.gif)
+
+*Live demo: the notch springs down with the alert, screen edges pulse red, ✕ dismisses.*
+
 ![ClaudeNotch showing a live incident](docs/screenshot.png)
 
 *Real screenshot: ClaudeNotch catching an actual live incident on status.claude.com.*
