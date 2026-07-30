@@ -8,6 +8,11 @@ final class HoverStatusModel: ObservableObject {
     @Published var visible = false
     @Published var topInset: CGFloat = 32
     @Published var lastUpdated: Date?
+    /// One-time onboarding line shown during the first-launch intro.
+    @Published var hintText: String?
+    /// Measured round-trip to the Claude API; nil while unmeasured or failed.
+    @Published var apiPingMs: Int?
+    @Published var pingFailed = false
     var onOpen: (() -> Void)?
 }
 
@@ -48,6 +53,40 @@ final class HoverStatusController {
         model.lastUpdated = Date()
     }
 
+    /// First-launch walkthrough: drop the panel once with a hint line so
+    /// people discover that the notch is hoverable at all.
+    func showIntro() {
+        model.hintText = "Hover the notch any time to check on Claude"
+        show()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6.5) { [weak self] in
+            guard let self else { return }
+            self.forceHide()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { self.model.hintText = nil }
+        }
+    }
+
+    /// One cheap unauthenticated request to the API host, timed. A 401 still
+    /// proves DNS + TLS + the service answering, which is what latency means here.
+    private func pingAPI() {
+        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/models")!)
+        request.cachePolicy = .reloadIgnoringLocalCacheData
+        request.timeoutInterval = 5
+        let started = Date()
+        URLSession.shared.dataTask(with: request) { [weak self] _, response, _ in
+            let ms = Int(Date().timeIntervalSince(started) * 1000)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if response != nil {
+                    self.model.apiPingMs = ms
+                    self.model.pingFailed = false
+                } else {
+                    self.model.apiPingMs = nil
+                    self.model.pingFailed = true
+                }
+            }
+        }.resume()
+    }
+
     func forceHide() {
         dwellStart = nil
         guard model.visible else { return }
@@ -86,6 +125,7 @@ final class HoverStatusController {
 
     private func show() {
         ensurePanel()
+        pingAPI()
         panel?.orderFrontRegardless()
         // Firm trackpad knock so opening the panel feels anchored to the notch.
         // .levelChange is the strongest of the three patterns; a second tick
@@ -179,6 +219,20 @@ struct HoverStatusView: View {
 
     private var card: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let hint = model.hintText {
+                HStack(spacing: 8) {
+                    Image(systemName: "hand.point.up.left.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.cyan)
+                    Text(hint)
+                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.cyan)
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.cyan.opacity(0.12)))
+            }
+
             HStack(spacing: 10) {
                 Image(systemName: hasIssues ? "exclamationmark.triangle.fill" : "checkmark.seal.fill")
                     .font(.system(size: 16, weight: .bold))
@@ -217,6 +271,20 @@ struct HoverStatusView: View {
                 }
             }
 
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(pingColor)
+                    .frame(width: 8, height: 8)
+                Text("Claude API round-trip")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.9))
+                Spacer(minLength: 8)
+                Text(pingText)
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .foregroundStyle(pingColor.opacity(0.9))
+                    .contentTransition(.numericText())
+            }
+
             Text(footerText)
                 .font(.system(size: 9, weight: .medium, design: .rounded))
                 .foregroundStyle(.white.opacity(0.35))
@@ -245,6 +313,20 @@ struct HoverStatusView: View {
         .contentShape(Rectangle())
         .onTapGesture { model.onOpen?() }
         .pressable()
+    }
+
+    private var pingText: String {
+        if model.pingFailed { return "unreachable" }
+        guard let ms = model.apiPingMs else { return "measuring…" }
+        return "\(ms) ms"
+    }
+
+    private var pingColor: Color {
+        if model.pingFailed { return .red }
+        guard let ms = model.apiPingMs else { return .gray }
+        if ms < 400 { return .green }
+        if ms < 1000 { return .yellow }
+        return .orange
     }
 
     private var footerText: String {

@@ -8,6 +8,8 @@ final class Settings {
         static let disabledComponents = "disabledComponentIDs"
         static let pollInterval = "pollInterval"
         static let edgeFlashEnabled = "edgeFlashEnabled"
+        static let didShowIntro = "didShowIntro"
+        static let quietWhenPresenting = "quietWhenPresenting"
     }
 
     /// Components the user chose NOT to monitor. Everything is monitored by default.
@@ -27,6 +29,18 @@ final class Settings {
     var edgeFlashEnabled: Bool {
         get { defaults.object(forKey: Key.edgeFlashEnabled) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.edgeFlashEnabled) }
+    }
+
+    /// One-time "hover the notch" walkthrough shown on first launch.
+    var didShowIntro: Bool {
+        get { defaults.bool(forKey: Key.didShowIntro) }
+        set { defaults.set(newValue, forKey: Key.didShowIntro) }
+    }
+
+    /// Hold back the drop-down alert while the screen is mirrored or shared.
+    var quietWhenPresenting: Bool {
+        get { defaults.object(forKey: Key.quietWhenPresenting) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.quietWhenPresenting) }
     }
 
     func isMonitored(_ componentID: String) -> Bool {

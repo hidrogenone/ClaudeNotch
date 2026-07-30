@@ -7,6 +7,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let notch = NotchAlertController()
     private let flasher = EdgeFlasher()
     private let hover = HoverStatusController()
+    private let updates = UpdateChecker()
     private let menu = NSMenu()
 
     private var currentAlert: AlertInfo?
@@ -32,12 +33,27 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             self.apply(alert: alert)
         }
         monitor.start()
+        updates.start()
+
+        if !Settings.shared.didShowIntro {
+            Settings.shared.didShowIntro = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+                self?.hover.showIntro()
+            }
+        }
     }
 
     private func apply(alert: AlertInfo?) {
         currentAlert = alert
         updateIcon(alert: alert)
         if let alert {
+            // Presenting: keep the icon red but hold the drop-down and flash
+            // until the next poll finds the screen private again.
+            if QuietMode.isActive {
+                flasher.stop()
+                hover.suppressed = false
+                return
+            }
             let showing = notch.present(alert)
             hover.suppressed = showing
             if showing && Settings.shared.edgeFlashEnabled {
@@ -58,8 +74,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             let image = NSImage(systemSymbolName: "checkmark.seal", accessibilityDescription: "ClaudeNotch: all systems operational")
             image?.isTemplate = true
             button.image = image
-        } else {
-            let config = NSImage.SymbolConfiguration(paletteColors: [.systemRed])
+        } else if let alert {
+            // Minor trouble is a caution, not an emergency — amber vs red.
+            let color: NSColor = impactRank(alert.impact) >= 2 ? .systemRed : .systemYellow
+            let config = NSImage.SymbolConfiguration(paletteColors: [color])
             let image = NSImage(systemSymbolName: "exclamationmark.triangle.fill", accessibilityDescription: "ClaudeNotch: incident active")?
                 .withSymbolConfiguration(config)
             image?.isTemplate = false
@@ -136,7 +154,20 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         flashItem.state = Settings.shared.edgeFlashEnabled ? .on : .off
         menu.addItem(flashItem)
 
+        // Quiet-while-presenting toggle
+        let quietItem = NSMenuItem(title: "Quiet While Screen Is Shared", action: #selector(toggleQuiet), keyEquivalent: "")
+        quietItem.target = self
+        quietItem.state = Settings.shared.quietWhenPresenting ? .on : .off
+        menu.addItem(quietItem)
+
         menu.addItem(.separator())
+
+        if let version = updates.availableVersion {
+            let updateItem = NSMenuItem(title: "⬆ Update Available (v\(version))…", action: #selector(openLatestRelease), keyEquivalent: "")
+            updateItem.target = self
+            menu.addItem(updateItem)
+            menu.addItem(.separator())
+        }
 
         let testItem = NSMenuItem(title: "Test Alert", action: #selector(testAlert), keyEquivalent: "t")
         testItem.target = self
@@ -181,6 +212,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         } else if currentAlert != nil {
             flasher.start()
         }
+    }
+
+    @objc private func toggleQuiet() {
+        Settings.shared.quietWhenPresenting.toggle()
+    }
+
+    @objc private func openLatestRelease() {
+        NSWorkspace.shared.open(UpdateChecker.latestReleaseURL)
     }
 
     @objc private func testAlert() {
