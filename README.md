@@ -1,5 +1,11 @@
 # ClaudeNotch
 
+[![Release](https://img.shields.io/github/v/release/hidrogenone/ClaudeNotch?color=red&label=download)](https://github.com/hidrogenone/ClaudeNotch/releases/latest)
+[![Stars](https://img.shields.io/github/stars/hidrogenone/ClaudeNotch?style=flat&color=yellow)](https://github.com/hidrogenone/ClaudeNotch/stargazers)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%2013%2B-black)](https://github.com/hidrogenone/ClaudeNotch/releases/latest)
+[![Swift](https://img.shields.io/badge/Swift-SwiftUI%20%2B%20AppKit-orange)](Package.swift)
+
 **Your MacBook's notch drops down and tells you when Claude is having a bad day.**
 
 ClaudeNotch is a tiny macOS menu bar app that watches [status.claude.com](https://status.claude.com). The moment an incident is published, the notch smoothly slides down into a Dynamic-Island-style alert showing what's broken — and your screen edges pulse red so you can't miss it. When the incident is resolved, everything retracts and goes quiet.
@@ -74,6 +80,12 @@ ClaudeNotch talks to exactly one endpoint: `status.claude.com`. No analytics, no
 ## Disclaimer
 
 ClaudeNotch is an independent open-source project. It is **not affiliated with, endorsed by, or sponsored by Anthropic**. "Claude" is a trademark of Anthropic, PBC — this app just reads their public status page.
+
+## Support the project
+
+If ClaudeNotch has ever saved you from a "wait, is it me or is Claude down?" spiral — [**star the repo ⭐**](https://github.com/hidrogenone/ClaudeNotch). It takes two seconds and helps other Claude users find it.
+
+Found a bug or want a feature? [Open an issue](../../issues) — PRs welcome.
 
 ## License
 
