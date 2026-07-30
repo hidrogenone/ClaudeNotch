@@ -201,11 +201,11 @@ final class HoverStatusController {
         ensurePanel()
         pingAPI()
         panel?.orderFrontRegardless()
-        // Aggressive trackpad knock so opening the panel feels anchored to the
-        // notch: three .levelChange hits in quick succession read as one heavy
-        // mechanical "thunk-k-k" instead of a polite tick.
+        // Heavy double burst: two waves of three .levelChange hits — the
+        // strongest pattern macOS exposes, stacked so it reads as a loud
+        // mechanical "THUNK-THUNK" you can't miss.
         NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
-        for delay in [0.07, 0.15] {
+        for delay in [0.055, 0.11, 0.26, 0.315, 0.37] {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
                 NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
             }
