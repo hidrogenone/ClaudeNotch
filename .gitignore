@@ -1,0 +1,8 @@
+.build/
+build/
+.DS_Store
+/s
+
+# CI workflow kept local until gh token gains the workflow scope
+# (run: gh auth refresh -h github.com -s workflow, then commit .github/)
+.github/
