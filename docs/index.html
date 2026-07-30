@@ -161,6 +161,57 @@
   /* confetti pieces (spawned on pill click) */
   .confetto { position: fixed; width: 8px; height: 5px; border-radius: 1.5px; pointer-events: none; z-index: 99; }
 
+  /* ---------- Fictive notch: does what the real one does ---------- */
+  #fn-shape {
+    position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+    width: 200px; height: 30px;
+    background: #000;
+    border: 1px solid rgba(255,255,255,0.14); border-top: none;
+    border-radius: 0 0 15px 15px;
+    z-index: 60; cursor: pointer;
+    transition: height 0.25s cubic-bezier(0.2,1.4,0.4,1), box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  #fn-shape:hover { height: 36px; box-shadow: 0 6px 30px rgba(255,255,255,0.10); }
+  #fn-shape.alarm {
+    border-color: rgba(255,59,48,0.8);
+    box-shadow: 0 6px 34px var(--red-soft);
+    animation: alarmPulse 1.2s ease-in-out infinite;
+  }
+  #fn-badge {
+    position: fixed; top: 46px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 8px;
+    background: linear-gradient(#000, #171717);
+    border: 1px solid rgba(77,216,230,0.75); border-radius: 15px;
+    padding: 9px 16px; font-size: 12.5px; font-weight: 600; color: #fff;
+    box-shadow: 0 4px 24px rgba(77,216,230,0.35);
+    z-index: 58; pointer-events: none; white-space: nowrap;
+    animation: badgeFloat 1.9s ease-in-out infinite alternate;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  #fn-badge.gone { opacity: 0; transform: translateX(-50%) translateY(-14px) scale(0.85); }
+  @keyframes badgeFloat { from { margin-top: 0; } to { margin-top: 9px; } }
+  #fn-panel {
+    position: fixed; top: 0; left: 50%;
+    width: min(400px, 92vw);
+    transform: translate(-50%, -106%);
+    background: linear-gradient(#000, #121212);
+    border: 1px solid rgba(255,255,255,0.15); border-top: none;
+    border-radius: 0 0 22px 22px;
+    padding: 44px 22px 16px;
+    z-index: 59;
+    box-shadow: 0 22px 70px rgba(0,0,0,0.65);
+    transition: transform 0.55s cubic-bezier(0.22, 1.2, 0.32, 1);
+    cursor: pointer;
+  }
+  #fn-panel.open { transform: translate(-50%, 0); }
+  #fn-panel.alarm { border-color: rgba(255,59,48,0.7); box-shadow: 0 22px 70px var(--red-soft); }
+  .fnp-head { display: flex; align-items: center; gap: 9px; font-size: 13.5px; font-weight: 700; margin-bottom: 10px; }
+  .fnp-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255,255,255,0.88); padding: 4.5px 0; }
+  .fnp-row .st { margin-left: auto; font-size: 10.5px; font-weight: 600; }
+  .fnp-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .fnp-sep { height: 1px; background: rgba(255,255,255,0.10); margin: 8px 0; }
+  .fnp-foot { font-size: 9.5px; color: rgba(255,255,255,0.35); margin-top: 10px; }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
     .reveal { opacity: 1; transform: none; }
@@ -168,6 +219,17 @@
 </style>
 </head>
 <body>
+
+<!-- Fictive notch: hover it — it does what the real one does -->
+<div id="fn-panel" title="Open status.claude.com">
+  <div class="fnp-head"><span id="fnp-icon">🟢</span><span id="fnp-title">Checking Claude status…</span></div>
+  <div id="fnp-rows"></div>
+  <div class="fnp-sep"></div>
+  <div class="fnp-row"><span class="fnp-dot" id="fnp-ping-dot" style="background:#666"></span>Claude API round-trip<span class="st" id="fnp-ping" style="color:#9a9aa5">measuring…</span></div>
+  <div class="fnp-foot">Live from status.claude.com · click to open · this is what the app puts in your real notch</div>
+</div>
+<div id="fn-shape" title="Hover me"></div>
+<div id="fn-badge">👆 Hover the notch — yes, this one</div>
 
 <header id="hero">
   <div id="hero-glow"></div>
@@ -268,35 +330,16 @@
     });
   }
 
-  // Live status from status.claude.com (Statuspage has open CORS)
-  var pill = document.getElementById("live-pill");
-  var dot = document.getElementById("live-dot");
-  var text = document.getElementById("live-text");
-  fetch("https://status.claude.com/api/v2/summary.json", { cache: "no-store" })
-    .then(function (r) { return r.json(); })
-    .then(function (s) {
-      var ok = s.status && s.status.indicator === "none";
-      pill.classList.add(ok ? "ok" : "bad");
-      dot.classList.add(ok ? "ok" : "bad");
-      var label = ok ? "All systems operational" : (s.status.description || "Incident in progress");
-      text.innerHTML = "<strong style=\"color:" + (ok ? "var(--green)" : "var(--red)") + "\">" + label +
-        "</strong>&nbsp;· live from status.claude.com";
-    })
-    .catch(function () {
-      text.textContent = "⚠️ Claude API — incident alerts, right in your notch";
-    });
-
-  // Confetti easter egg on the notch pill — same celebration as the app
+  // Confetti — same celebration as the app
   var colors = ["#ff3b30", "#ff9500", "#ffcc00", "#34c759", "#4dd8e6", "#ff2d55", "#af52de"];
-  pill.addEventListener("click", function () {
+  function confettiFrom(cx, cy) {
     if (reduceMotion) return;
-    var r = pill.getBoundingClientRect();
     for (var i = 0; i < 26; i++) {
       var c = document.createElement("div");
       c.className = "confetto";
       c.style.background = colors[Math.floor(Math.random() * colors.length)];
-      c.style.left = (r.left + r.width / 2) + "px";
-      c.style.top = (r.bottom - 6) + "px";
+      c.style.left = cx + "px";
+      c.style.top = cy + "px";
       document.body.appendChild(c);
       var dx = (Math.random() - 0.5) * 360;
       var dy = 120 + Math.random() * 260;
@@ -310,7 +353,98 @@
         { duration: dur, delay: Math.random() * 180, easing: "cubic-bezier(0.15,0.6,0.4,1)", fill: "forwards" }
       ).onfinish = function () { this.effect.target.remove(); };
     }
+  }
+
+  // Live status from status.claude.com (Statuspage has open CORS) — feeds
+  // both the hero pill and the fictive notch panel.
+  var pill = document.getElementById("live-pill");
+  var dot = document.getElementById("live-dot");
+  var text = document.getElementById("live-text");
+  var shape = document.getElementById("fn-shape");
+  var panel = document.getElementById("fn-panel");
+  var badge = document.getElementById("fn-badge");
+  var stColor = { operational: "#34c759", degraded_performance: "#ffcc00", partial_outage: "#ff9500", major_outage: "#ff3b30", under_maintenance: "#4dd8e6" };
+  function human(s) { return (s || "").replace(/_/g, " ").replace(/^./, function (c) { return c.toUpperCase(); }); }
+
+  function refreshStatus() {
+    var t0 = performance.now();
+    fetch("https://status.claude.com/api/v2/summary.json", { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (s) {
+        var ms = Math.round(performance.now() - t0);
+        var ok = s.status && s.status.indicator === "none";
+        // hero pill
+        pill.classList.add(ok ? "ok" : "bad");
+        dot.classList.add(ok ? "ok" : "bad");
+        var label = ok ? "All systems operational" : (s.status.description || "Incident in progress");
+        text.innerHTML = "<strong style=\"color:" + (ok ? "var(--green)" : "var(--red)") + "\">" + label +
+          "</strong>&nbsp;· live from status.claude.com";
+        // fictive notch
+        shape.classList.toggle("alarm", !ok);
+        panel.classList.toggle("alarm", !ok);
+        document.getElementById("fnp-icon").textContent = ok ? "🟢" : "🔴";
+        document.getElementById("fnp-title").textContent = label;
+        var rows = "";
+        (s.components || []).filter(function (c) { return !c.group; }).slice(0, 8).forEach(function (c) {
+          var col = stColor[c.status] || "#9a9aa5";
+          rows += '<div class="fnp-row"><span class="fnp-dot" style="background:' + col + '"></span>' +
+            c.name + '<span class="st" style="color:' + col + '">' + human(c.status) + "</span></div>";
+        });
+        document.getElementById("fnp-rows").innerHTML = rows;
+        var ping = document.getElementById("fnp-ping");
+        var pingDot = document.getElementById("fnp-ping-dot");
+        var pcol = ms < 400 ? "#34c759" : ms < 1000 ? "#ffcc00" : "#ff9500";
+        ping.textContent = ms + " ms";
+        ping.style.color = pcol;
+        pingDot.style.background = pcol;
+      })
+      .catch(function () {
+        text.textContent = "⚠️ Claude API — incident alerts, right in your notch";
+        document.getElementById("fnp-title").textContent = "status.claude.com unreachable";
+      });
+  }
+  refreshStatus();
+
+  pill.addEventListener("click", function () {
+    var r = pill.getBoundingClientRect();
+    confettiFrom(r.left + r.width / 2, r.bottom - 6);
   });
+
+  // Fictive notch behavior: hover (or tap) opens the panel, just like the app.
+  var tutorialDone = false;
+  try { tutorialDone = localStorage.getItem("cnNotchTutorial") === "1"; } catch (e) {}
+  if (tutorialDone) badge.classList.add("gone");
+  var closeTimer = null;
+  var lastFetch = Date.now();
+
+  function openPanel() {
+    clearTimeout(closeTimer);
+    if (!panel.classList.contains("open")) {
+      panel.classList.add("open");
+      if (Date.now() - lastFetch > 30000) { lastFetch = Date.now(); refreshStatus(); }
+      if (!tutorialDone) {
+        tutorialDone = true;
+        try { localStorage.setItem("cnNotchTutorial", "1"); } catch (e) {}
+        badge.classList.add("gone");
+        var r = panel.getBoundingClientRect();
+        setTimeout(function () { confettiFrom(r.left + r.width / 2, Math.min(r.height, 260)); }, 350);
+      }
+    }
+  }
+  function scheduleClose() {
+    clearTimeout(closeTimer);
+    closeTimer = setTimeout(function () { panel.classList.remove("open"); }, 380);
+  }
+  shape.addEventListener("mouseenter", openPanel);
+  shape.addEventListener("mouseleave", scheduleClose);
+  panel.addEventListener("mouseenter", openPanel);
+  panel.addEventListener("mouseleave", scheduleClose);
+  shape.addEventListener("click", function () {
+    panel.classList.contains("open") && !("ontouchstart" in window)
+      ? panel.classList.remove("open")
+      : openPanel();
+  });
+  panel.addEventListener("click", function () { window.open("https://status.claude.com", "_blank"); });
 })();
 </script>
 
