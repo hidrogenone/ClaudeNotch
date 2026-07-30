@@ -201,12 +201,14 @@ final class HoverStatusController {
         ensurePanel()
         pingAPI()
         panel?.orderFrontRegardless()
-        // Firm trackpad knock so opening the panel feels anchored to the notch.
-        // .levelChange is the strongest of the three patterns; a second tick
-        // right after the first makes it read as a deliberate "thunk".
+        // Aggressive trackpad knock so opening the panel feels anchored to the
+        // notch: three .levelChange hits in quick succession read as one heavy
+        // mechanical "thunk-k-k" instead of a polite tick.
         NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
-            NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+        for delay in [0.07, 0.15] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+            }
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak self] in
             self?.model.visible = true

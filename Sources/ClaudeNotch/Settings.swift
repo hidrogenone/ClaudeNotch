@@ -10,6 +10,7 @@ final class Settings {
         static let edgeFlashEnabled = "edgeFlashEnabled"
         static let didShowIntro = "didShowIntro"
         static let quietWhenPresenting = "quietWhenPresenting"
+        static let didSetupLoginItem = "didSetupLoginItem"
     }
 
     /// Components the user chose NOT to monitor. Everything is monitored by default.
@@ -35,6 +36,12 @@ final class Settings {
     var didShowIntro: Bool {
         get { defaults.bool(forKey: Key.didShowIntro) }
         set { defaults.set(newValue, forKey: Key.didShowIntro) }
+    }
+
+    /// One-time launch-at-login registration on first run.
+    var didSetupLoginItem: Bool {
+        get { defaults.bool(forKey: Key.didSetupLoginItem) }
+        set { defaults.set(newValue, forKey: Key.didSetupLoginItem) }
     }
 
     /// Hold back the drop-down alert while the screen is mirrored or shared.

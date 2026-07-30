@@ -35,6 +35,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         monitor.start()
         updates.start()
 
+        // A status monitor only helps if it's actually running, so opt into
+        // launch-at-login on first run. One-time: respects a later opt-out.
+        if Bundle.main.bundleURL.pathExtension == "app", !Settings.shared.didSetupLoginItem {
+            Settings.shared.didSetupLoginItem = true
+            try? SMAppService.mainApp.register()
+        }
+
         // --intro replays the tutorial on demand (demos, testing). The flag is
         // only marked done once the user actually hovers the notch, so an
         // unfinished tutorial returns on the next launch.

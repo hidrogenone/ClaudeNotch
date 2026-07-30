@@ -41,17 +41,26 @@ No more staring at a spinning Claude wondering if it's you or them. **It's them 
 
 Requires **macOS 13 or later**. The release build is a universal binary, so it runs natively on both Apple Silicon and Intel Macs.
 
-### Download (easiest)
+### One-liner (easiest)
 
-1. Grab `ClaudeNotch.zip` from the [latest release](../../releases/latest).
-2. Unzip and move `ClaudeNotch.app` to `/Applications`.
-3. First launch: right-click the app → **Open** (it's ad-hoc signed, not notarized). If macOS still complains:
+```bash
+curl -fsSL https://raw.githubusercontent.com/hidrogenone/ClaudeNotch/main/install.sh | bash
+```
+
+Downloads the latest release, installs to `/Applications`, clears the quarantine
+flag (the app is ad-hoc signed, not notarized — [read the script](install.sh)
+first if you like, it's 30 lines) and launches it.
+
+### DMG
+
+1. Grab `ClaudeNotch.dmg` from the [latest release](../../releases/latest) and drag the app to Applications.
+2. First launch: right-click → **Open**. If macOS refuses ("Apple could not verify…"), either allow it under **System Settings → Privacy & Security → Open Anyway**, or run:
 
    ```bash
    xattr -dr com.apple.quarantine /Applications/ClaudeNotch.app
    ```
 
-4. Look for the ✓ icon in your menu bar. Try **Test Alert** from the menu to see the notch drop.
+3. Hover your notch — the first-run tutorial takes it from there. Launch-at-login is set up automatically on first run (toggle it off in the menu).
 
 ### Build from source
 

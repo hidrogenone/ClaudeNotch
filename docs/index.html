@@ -220,12 +220,10 @@
   <div class="wrap">
     <h2 class="reveal">Install in 30 seconds</h2>
     <div class="install reveal">
-      <ol>
-        <li>Download <code>ClaudeNotch.zip</code> from the <a href="https://github.com/hidrogenone/ClaudeNotch/releases/latest" style="color:#ffb4ae">latest release</a>.</li>
-        <li>Unzip and move <code>ClaudeNotch.app</code> to Applications.</li>
-        <li>Right-click → <strong>Open</strong> (ad-hoc signed). If macOS complains: <code>xattr -dr com.apple.quarantine /Applications/ClaudeNotch.app</code></li>
-        <li>Look for the ✓ in your menu bar — then hover your notch. 🎉</li>
-      </ol>
+      <p style="margin-bottom:14px">One line, done — installs the latest release, clears quarantine, launches (<a href="https://github.com/hidrogenone/ClaudeNotch/blob/main/install.sh" style="color:#ffb4ae">read the script</a>):</p>
+      <p><code style="display:block;padding:12px 14px;user-select:all">curl -fsSL https://raw.githubusercontent.com/hidrogenone/ClaudeNotch/main/install.sh | bash</code></p>
+      <p style="margin:18px 0 10px;color:var(--muted)">Prefer clicking? Grab <code>ClaudeNotch.dmg</code> from the <a href="https://github.com/hidrogenone/ClaudeNotch/releases/latest" style="color:#ffb4ae">latest release</a>, drag to Applications, right-click → Open. If macOS refuses: System Settings → Privacy &amp; Security → <strong>Open Anyway</strong>.</p>
+      <p style="color:var(--muted)">Then hover your notch — the first-run tutorial (and its confetti) takes it from there. Launch-at-login is on by default; everything's a toggle in the menu.</p>
     </div>
   </div>
 </section>
