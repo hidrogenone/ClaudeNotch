@@ -6,3 +6,6 @@ build/
 # CI workflow kept local until gh token gains the workflow scope
 # (run: gh auth refresh -h github.com -s workflow, then commit .github/)
 .github/
+
+# Local launch material, not for the public repo
+LAUNCH-KIT.md
