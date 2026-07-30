@@ -14,7 +14,15 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 printf 'APPL????' > "$APP/Contents/PkgInfo"
 
-# Ad-hoc signature so Gatekeeper lets it run locally.
-codesign --force --sign - "$APP"
+# Developer ID + hardened runtime when the certificate is present (required
+# for notarization); ad-hoc fallback so contributors can still build.
+IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application/{print $2; exit}')
+if [ -n "$IDENTITY" ]; then
+  codesign --force --options runtime --timestamp --sign "$IDENTITY" "$APP"
+  echo "Signed with: $IDENTITY"
+else
+  codesign --force --sign - "$APP"
+  echo "Signed ad-hoc (no Developer ID certificate found)"
+fi
 
 echo "Built $APP ($(lipo -archs "$APP/Contents/MacOS/ClaudeNotch"))"
