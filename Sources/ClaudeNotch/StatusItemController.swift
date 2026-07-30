@@ -35,7 +35,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         monitor.start()
         updates.start()
 
-        if !Settings.shared.didShowIntro {
+        // --intro replays the walkthrough on demand (demos, testing).
+        if !Settings.shared.didShowIntro || CommandLine.arguments.contains("--intro") {
             Settings.shared.didShowIntro = true
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
                 self?.hover.showIntro()
