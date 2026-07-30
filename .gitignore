@@ -9,3 +9,6 @@ build/
 
 # Local launch material, not for the public repo
 LAUNCH-KIT.md
+
+# Local Claude Code state
+.claude/
