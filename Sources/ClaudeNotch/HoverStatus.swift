@@ -87,8 +87,13 @@ final class HoverStatusController {
     private func show() {
         ensurePanel()
         panel?.orderFrontRegardless()
-        // Soft trackpad tick so opening the panel feels anchored to the notch.
-        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
+        // Firm trackpad knock so opening the panel feels anchored to the notch.
+        // .levelChange is the strongest of the three patterns; a second tick
+        // right after the first makes it read as a deliberate "thunk".
+        NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.09) {
+            NSHapticFeedbackManager.defaultPerformer.perform(.levelChange, performanceTime: .now)
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak self] in
             self?.model.visible = true
         }
