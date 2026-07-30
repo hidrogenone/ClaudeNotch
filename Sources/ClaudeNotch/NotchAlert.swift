@@ -24,10 +24,16 @@ final class NotchAlertController {
     /// Called when the user explicitly dismisses the alert (so the edge flash can stop too).
     var onUserDismiss: (() -> Void)?
 
+    /// How long the alert stays down before retracting on its own. The menu
+    /// bar icon stays red and the hover panel keeps showing the incident, so
+    /// the notch doesn't have to block the screen (or fullscreen apps) forever.
+    static let autoRetractDelay: TimeInterval = 30
+
     private var panel: NotchPanel?
     private let model = NotchViewModel()
     private var currentAlert: AlertInfo?
     private var dismissedAlertKey: String?
+    private var autoRetract: DispatchWorkItem?
 
     init() {
         model.onDismiss = { [weak self] in self?.userDismiss() }
@@ -61,17 +67,23 @@ final class NotchAlertController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
             self?.model.visible = true
         }
+        autoRetract?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.userDismiss() }
+        autoRetract = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.autoRetractDelay, execute: work)
         return true
     }
 
     /// The incident is over: retract and forget any dismissal.
     func clear() {
+        autoRetract?.cancel()
         currentAlert = nil
         dismissedAlertKey = nil
         retract()
     }
 
     private func userDismiss() {
+        autoRetract?.cancel()
         dismissedAlertKey = currentAlert?.key
         retract()
         onUserDismiss?()
@@ -174,14 +186,7 @@ struct NotchView: View {
 
             Spacer(minLength: 8)
 
-            Button(action: { model.onDismiss?() }) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .frame(width: 26, height: 26)
-                    .background(Circle().fill(Color.white.opacity(0.12)))
-            }
-            .buttonStyle(.plain)
+            DismissButton { model.onDismiss?() }
         }
         .padding(.horizontal, 24)
         .padding(.top, model.topInset + 12)
@@ -198,7 +203,50 @@ struct NotchView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture { model.onOpen?() }
+        .pressable()
     }
+}
+
+// MARK: - Micro-interactions
+
+/// Close button that grows and brightens under the cursor.
+struct DismissButton: View {
+    var action: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "xmark")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.white.opacity(hovering ? 1.0 : 0.7))
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(Color.white.opacity(hovering ? 0.25 : 0.12)))
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(hovering ? 1.15 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hovering)
+        .onHover { hovering = $0 }
+    }
+}
+
+/// Gentle press-down scale so the whole card feels tappable.
+struct Pressable: ViewModifier {
+    @State private var pressed = false
+
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(pressed ? 0.98 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: pressed)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in pressed = true }
+                    .onEnded { _ in pressed = false }
+            )
+    }
+}
+
+extension View {
+    func pressable() -> some View { modifier(Pressable()) }
 }
 
 /// Rectangle rounded only at the bottom corners, so the panel looks like

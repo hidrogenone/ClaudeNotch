@@ -87,6 +87,8 @@ final class HoverStatusController {
     private func show() {
         ensurePanel()
         panel?.orderFrontRegardless()
+        // Soft trackpad tick so opening the panel feels anchored to the notch.
+        NSHapticFeedbackManager.defaultPerformer.perform(.alignment, performanceTime: .default)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.03) { [weak self] in
             self?.model.visible = true
         }
@@ -195,9 +197,10 @@ struct HoverStatusView: View {
 
             ForEach(components, id: \.id) { component in
                 HStack(spacing: 8) {
-                    Circle()
-                        .fill(Self.color(for: component.status))
-                        .frame(width: 8, height: 8)
+                    StatusDot(
+                        color: Self.color(for: component.status),
+                        troubled: component.status != "operational"
+                    )
                     Text(component.name)
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(.white.opacity(Settings.shared.isMonitored(component.id) ? 0.9 : 0.4))
@@ -236,12 +239,40 @@ struct HoverStatusView: View {
         )
         .contentShape(Rectangle())
         .onTapGesture { model.onOpen?() }
+        .pressable()
     }
 
     private var footerText: String {
         guard let updated = model.lastUpdated else { return "Waiting for first fetch…" }
         let seconds = max(0, Int(Date().timeIntervalSince(updated)))
         return "Updated \(seconds)s ago · Click to open status.claude.com"
+    }
+
+    /// Component dot; troubled ones emit a slow ripple so problems catch the eye.
+    struct StatusDot: View {
+        let color: Color
+        let troubled: Bool
+        @State private var ripple = false
+
+        var body: some View {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+                .overlay {
+                    if troubled {
+                        Circle()
+                            .stroke(color.opacity(0.6), lineWidth: 1.5)
+                            .scaleEffect(ripple ? 2.4 : 1.0)
+                            .opacity(ripple ? 0 : 0.8)
+                    }
+                }
+                .onAppear {
+                    guard troubled else { return }
+                    withAnimation(.easeOut(duration: 1.4).repeatForever(autoreverses: false)) {
+                        ripple = true
+                    }
+                }
+        }
     }
 
     static func color(for status: String) -> Color {
