@@ -6,6 +6,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let monitor = StatusMonitor()
     private let notch = NotchAlertController()
     private let flasher = EdgeFlasher()
+    private let hover = HoverStatusController()
     private let menu = NSMenu()
 
     private var currentAlert: AlertInfo?
@@ -21,10 +22,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         notch.onUserDismiss = { [weak self] in
             self?.flasher.stop()
+            self?.hover.suppressed = false
         }
 
-        monitor.onUpdate = { [weak self] _, alert in
-            guard let self, !self.testAlertActive else { return }
+        monitor.onUpdate = { [weak self] summary, alert in
+            guard let self else { return }
+            self.hover.update(summary: summary)
+            guard !self.testAlertActive else { return }
             self.apply(alert: alert)
         }
         monitor.start()
@@ -35,6 +39,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         updateIcon(alert: alert)
         if let alert {
             let showing = notch.present(alert)
+            hover.suppressed = showing
             if showing && Settings.shared.edgeFlashEnabled {
                 flasher.start()
             } else if !showing {
@@ -43,6 +48,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         } else {
             notch.clear()
             flasher.stop()
+            hover.suppressed = false
         }
     }
 
@@ -183,6 +189,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     func triggerTestAlert() {
         testAlertActive = true
+        hover.suppressed = true
         let fake = AlertInfo(
             title: "Elevated errors across many models",
             detail: "claude.ai · Claude API · Claude Code",
@@ -198,6 +205,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
             guard let self else { return }
             self.testAlertActive = false
+            self.hover.suppressed = false
             self.notch.clear()
             self.flasher.stop()
             self.monitor.reevaluate()

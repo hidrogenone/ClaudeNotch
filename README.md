@@ -10,9 +10,14 @@ No more staring at a spinning Claude wondering if it's you or them. **It's them 
 
 *Real screenshot: ClaudeNotch catching an actual live incident on status.claude.com.*
 
+<p align="center"><img src="docs/hover.png" width="430" alt="Hover status panel with live component health"></p>
+
+*Hover the notch any time to peek at live component health.*
+
 ## Features
 
 - 🔻 **Notch drop-down alerts** — a smooth spring animation extends the notch into an alert card showing the incident title and affected components. Click it to open the incident page, or dismiss it with ✕.
+- 🖱 **Hover the notch to peek** — move your mouse over the notch any time and a live status panel slides down: every component with a colored health dot, the active incident if any, and how fresh the data is. Move away and it retracts.
 - 🔴 **Red screen-edge flash** — while an incident is active, all screen edges pulse with a red glow (can be turned off in the menu).
 - 🧩 **Choose what you monitor** — a menu lists every component from status.claude.com (claude.ai, Claude API, Claude Code, Claude Console, …) with checkboxes. Only care about the API? Uncheck the rest.
 - ⏱ **Configurable polling** — check every 30 seconds up to every 5 minutes.
