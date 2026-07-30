@@ -39,6 +39,8 @@ No more staring at a spinning Claude wondering if it's you or them. **It's them 
 
 ## Install
 
+Requires **macOS 13 or later**. The release build is a universal binary, so it runs natively on both Apple Silicon and Intel Macs.
+
 ### Download (easiest)
 
 1. Grab `ClaudeNotch.zip` from the [latest release](../../releases/latest).
